@@ -7,3 +7,6 @@ backend/target/
 
 # OS
 .DS_Store
+
+# Frontend local env
+frontend/.env.local
