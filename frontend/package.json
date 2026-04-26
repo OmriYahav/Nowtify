@@ -3,11 +3,12 @@
   "version": "1.0.0",
   "main": "node_modules/expo/AppEntry.js",
   "scripts": {
-    "start": "node scripts/start-expo-lan.js",
+    "start": "powershell -ExecutionPolicy Bypass -File ./scripts/start-lan.ps1",
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "expo:start": "expo start"
+    "expo:start": "expo start",
+    "start:lan": "powershell -ExecutionPolicy Bypass -File ./scripts/start-lan.ps1"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "1.23.1",
