@@ -1,4 +1,4 @@
-import { NativeModules, Platform } from 'react-native';
+import { NativeModules } from 'react-native';
 import Constants from 'expo-constants';
 
 const DEFAULT_API_PORT = '8080';
@@ -52,10 +52,6 @@ function resolveDevApiBaseUrl() {
     const expoHost = getExpoHostCandidate();
     if (expoHost && expoHost !== 'localhost' && expoHost !== '127.0.0.1') {
       return `http://${expoHost}:${DEFAULT_API_PORT}`;
-    }
-
-    if (Platform.OS === 'android') {
-      return `http://10.0.2.2:${DEFAULT_API_PORT}`;
     }
 
     return `http://localhost:${DEFAULT_API_PORT}`;
