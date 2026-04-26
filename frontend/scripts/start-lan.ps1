@@ -1,14 +1,14 @@
 $ErrorActionPreference = 'Stop'
 
 function Get-PreferredLanAddress {
-  $ignoreAliasPattern = 'WSL|Docker|Bluetooth|Loopback|Virtual|Hyper-V|VPN|TAP|TUN|vEthernet|VMware|Npcap'
+  $ignoreAdapterPattern = 'WSL|Docker|Bluetooth|Loopback|Virtual|Hyper-V|VPN|TAP|TUN|vEthernet|VMware|Npcap|ZeroTier|Tailscale'
 
   $allIPv4 = Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue | Where-Object {
     $_.IPAddress -and
     $_.PrefixOrigin -ne 'WellKnown' -and
     $_.IPAddress -notlike '127.*' -and
     $_.IPAddress -notlike '169.254.*' -and
-    $_.InterfaceAlias -notmatch $ignoreAliasPattern
+    $_.InterfaceAlias -notmatch $ignoreAdapterPattern
   }
 
   if (-not $allIPv4) {
@@ -19,11 +19,7 @@ function Get-PreferredLanAddress {
 
   $candidates = foreach ($entry in $allIPv4) {
     $cfg = $configs | Where-Object { $_.InterfaceIndex -eq $entry.InterfaceIndex } | Select-Object -First 1
-    if (-not $cfg) {
-      continue
-    }
-
-    if (-not $cfg.NetAdapter) {
+    if (-not $cfg -or -not $cfg.NetAdapter) {
       continue
     }
 
@@ -31,7 +27,7 @@ function Get-PreferredLanAddress {
       continue
     }
 
-    if ($cfg.NetAdapter.InterfaceDescription -match $ignoreAliasPattern) {
+    if ($cfg.NetAdapter.InterfaceDescription -match $ignoreAdapterPattern) {
       continue
     }
 
@@ -51,16 +47,15 @@ function Get-PreferredLanAddress {
     return $null
   }
 
-  # Prefer: Wi-Fi first, then Ethernet, then anything else that survived filtering.
-  # Within each group: prefer interfaces with a default gateway and lower interface metric.
   return $candidates |
-    Sort-Object @{ Expression = { if ($_.IsWifi) { 0 } elseif ($_.IsEthernet) { 1 } else { 2 } } },
-                @{ Expression = { if ($_.HasDefaultGateway) { 0 } else { 1 } } },
+    Sort-Object @{ Expression = { if ($_.HasDefaultGateway) { 0 } else { 1 } } },
+                @{ Expression = { if ($_.IsWifi) { 0 } elseif ($_.IsEthernet) { 1 } else { 2 } } },
                 @{ Expression = { $_.InterfaceMetric } } |
     Select-Object -First 1
 }
 
 $selected = Get-PreferredLanAddress
+$metroPort = if ($env:RCT_METRO_PORT) { $env:RCT_METRO_PORT } else { '8081' }
 
 if (-not $selected) {
   Write-Host '[start-lan] No valid LAN/Wi-Fi IPv4 found. Falling back to Expo tunnel mode.' -ForegroundColor Yellow
@@ -68,11 +63,18 @@ if (-not $selected) {
   exit $LASTEXITCODE
 }
 
+$lanIp = $selected.IPAddress
+$proxyUrl = "http://$lanIp`:$metroPort"
+
 Write-Host ("[start-lan] Selected adapter: {0}" -f $selected.InterfaceAlias) -ForegroundColor Cyan
-Write-Host ("[start-lan] Selected IPv4:   {0}" -f $selected.IPAddress) -ForegroundColor Cyan
+Write-Host ("[start-lan] Adapter details:  {0}" -f $selected.InterfaceDescription) -ForegroundColor DarkCyan
+Write-Host ("[start-lan] Selected IPv4:   {0}" -f $lanIp) -ForegroundColor Cyan
+Write-Host ("[start-lan] Forced host URI: exp://{0}:{1}" -f $lanIp, $metroPort) -ForegroundColor Green
 
-# Set only for this PowerShell process and child processes (do NOT persist with setx).
-$env:REACT_NATIVE_PACKAGER_HOSTNAME = $selected.IPAddress
+# Process-local only (current shell + child process). Do not persist with setx.
+$env:REACT_NATIVE_PACKAGER_HOSTNAME = $lanIp
+$env:EXPO_PACKAGER_PROXY_URL = $proxyUrl
 
+# Expo should already bind Metro on all interfaces in LAN mode; this script forces the advertised URL.
 npx expo start --host lan --clear
 exit $LASTEXITCODE
