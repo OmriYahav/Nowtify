@@ -14,10 +14,17 @@ Use one of these instead:
 All of these call `scripts/start-lan.ps1`, which:
 
 - auto-detects the active LAN/Wi-Fi IPv4 address
-- prefers Wi-Fi adapters, then Ethernet
+- prioritizes adapters with a default gateway, then Wi-Fi/Ethernet preference
+- filters out WSL/Hyper-V/VPN/virtual adapters to avoid wrong host selection
 - sets `REACT_NATIVE_PACKAGER_HOSTNAME` for the current process/session only
+- sets `EXPO_PACKAGER_PROXY_URL` to force Expo's advertised `exp://` host to that LAN IP
 - starts Expo with LAN mode (`npx expo start --host lan --clear`)
 - falls back to tunnel mode if no valid LAN address is found
+
+Why this is needed:
+
+- On some Windows setups with multiple adapters, Expo can still advertise `127.0.0.1` even in LAN mode.
+- Forcing `EXPO_PACKAGER_PROXY_URL` (supported by Expo CLI) ensures the manifest host URI and QR URL use your detected LAN IP.
 
 ### Verify it worked
 
