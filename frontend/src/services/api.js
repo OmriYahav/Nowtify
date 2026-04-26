@@ -43,6 +43,11 @@ function resolveDevApiBaseUrl() {
     return envUrl;
   }
 
+  const envLanIp = process.env.EXPO_PUBLIC_DEV_LAN_IP;
+  if (envLanIp) {
+    return `http://${envLanIp}:${DEFAULT_API_PORT}`;
+  }
+
   if (__DEV__) {
     const expoHost = getExpoHostCandidate();
     if (expoHost && expoHost !== 'localhost' && expoHost !== '127.0.0.1') {
@@ -60,6 +65,13 @@ function resolveDevApiBaseUrl() {
 }
 
 const API_BASE_URL = resolveDevApiBaseUrl();
+
+if (__DEV__) {
+  const expoHost = getExpoHostCandidate();
+  console.log(
+    `[api] Expo host candidate: ${expoHost || 'n/a'} | API base URL: ${API_BASE_URL}`
+  );
+}
 
 export async function apiRequest(path, options = {}) {
   const res = await fetch(`${API_BASE_URL}${path}`, {
