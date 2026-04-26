@@ -1,28 +1,66 @@
 $ErrorActionPreference = 'Stop'
 
-$excludeNamePattern = 'Loopback|Virtual|VMware|Hyper-V|vEthernet|WSL|Docker|VPN|Tailscale|ZeroTier|Bluetooth|Npcap|NAT|Hamachi'
-$preferredNamePattern = 'Wi-?Fi|Wireless|WLAN|Ethernet'
+$excludedAliasPatterns = @(
+  'Loopback',
+  'WSL',
+  'vEthernet',
+  'Docker',
+  'Bluetooth',
+  'VPN',
+  'Virtual',
+  'VMware',
+  'Hyper-V',
+  'Tailscale',
+  'ZeroTier',
+  'WireGuard',
+  'Hamachi'
+)
+
+function Test-ExcludedAdapter {
+  param(
+    [string]$InterfaceAlias,
+    [string]$InterfaceDescription
+  )
+
+  $alias = $InterfaceAlias ?? ''
+  $description = $InterfaceDescription ?? ''
+
+  foreach ($pattern in $excludedAliasPatterns) {
+    if ($alias -match [regex]::Escape($pattern) -or $description -match [regex]::Escape($pattern)) {
+      return $true
+    }
+  }
+
+  return $false
+}
 
 function Get-LanIPv4 {
-  $configs = Get-NetIPConfiguration | Where-Object {
-    $_.NetAdapter.Status -eq 'Up' -and
-    $_.IPv4Address -and
-    $_.IPv4DefaultGateway -and
-    $_.InterfaceAlias -notmatch $excludeNamePattern
-  }
+  param(
+    [string[]]$PreferredTypes
+  )
 
-  if (-not $configs) {
-    return $null
-  }
+  $configs = Get-NetIPConfiguration |
+    Where-Object {
+      $_.NetAdapter.Status -eq 'Up' -and
+      $_.IPv4Address -and
+      -not (Test-ExcludedAdapter -InterfaceAlias $_.InterfaceAlias -InterfaceDescription $_.NetAdapter.InterfaceDescription)
+    }
 
-  $preferred = $configs | Where-Object { $_.InterfaceAlias -match $preferredNamePattern }
-  $ordered = @($preferred) + @($configs | Where-Object { $_.InterfaceAlias -notmatch $preferredNamePattern })
+  foreach ($type in $PreferredTypes) {
+    $match = $configs | Where-Object { $_.NetAdapter.NdisPhysicalMedium -eq $type }
 
-  foreach ($config in $ordered) {
-    foreach ($entry in $config.IPv4Address) {
-      $ip = $entry.IPAddress
-      if ($ip -and $ip -notmatch '^127\.' -and $ip -notmatch '^169\.254\.') {
-        return $ip
+    foreach ($cfg in $match) {
+      $validIPv4 = $cfg.IPv4Address |
+        Select-Object -ExpandProperty IPAddress |
+        Where-Object {
+          $_ -and
+          $_ -notmatch '^127\.' -and
+          $_ -notmatch '^169\.254\.'
+        } |
+        Select-Object -First 1
+
+      if ($validIPv4) {
+        return $validIPv4
       }
     }
   }
@@ -30,15 +68,14 @@ function Get-LanIPv4 {
   return $null
 }
 
-$detectedIp = Get-LanIPv4
+$lanIp = Get-LanIPv4 -PreferredTypes @('Native802_11', '802_3')
 
-if (-not $detectedIp) {
-  Write-Warning 'Could not detect an active LAN IPv4 address. Falling back to localhost.'
-  $detectedIp = '127.0.0.1'
+if ($lanIp) {
+  Write-Host "Selected LAN IP: $lanIp"
+  $env:REACT_NATIVE_PACKAGER_HOSTNAME = $lanIp
+  npx expo start --host lan --clear
 }
-
-$env:REACT_NATIVE_PACKAGER_HOSTNAME = $detectedIp
-Write-Host "[start:lan] Using LAN IP: $detectedIp"
-Write-Host '[start:lan] Starting Expo with --host lan --clear ...'
-
-npx expo start --host lan --clear
+else {
+  Write-Warning 'No valid LAN IPv4 address found. Falling back to tunnel mode.'
+  npx expo start --host tunnel --clear
+}
