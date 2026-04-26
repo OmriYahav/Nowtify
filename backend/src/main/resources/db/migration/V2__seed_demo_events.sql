@@ -1,0 +1,7 @@
+INSERT INTO events (title, description, category, prediction_question, status, outcome, closing_time, created_at)
+VALUES
+('Demo: Border Crossing Update Expected', 'Fictional scenario: officials may publish a border crossing update in the next 6 hours.', 'Security', 'Will a formal update be published before closing time?', 'LIVE', NULL, NOW() + INTERVAL '6 hour', NOW() - INTERVAL '1 hour'),
+('Demo: Aid Corridor Reopening Window', 'Fictional scenario about a humanitarian corridor reopening discussion this evening.', 'Humanitarian', 'Will the corridor reopening be confirmed tonight?', 'LIVE', NULL, NOW() + INTERVAL '8 hour', NOW() - INTERVAL '2 hour'),
+('Demo: Regional Ceasefire Talks', 'Fictional scenario: envoys are expected to issue a statement after closed-door talks.', 'Diplomacy', 'Will envoys announce progress before midnight UTC?', 'LIVE', NULL, NOW() + INTERVAL '10 hour', NOW() - INTERVAL '3 hour'),
+('Demo: Emergency Cabinet Briefing', 'Fictional scenario: a security briefing may be moved to a public press conference.', 'Politics', 'Will the briefing become public today?', 'LIVE', NULL, NOW() + INTERVAL '5 hour', NOW() - INTERVAL '90 minutes'),
+('Demo: Port Operations Normalization', 'Fictional scenario on whether port inspections return to regular schedules by tomorrow.', 'Economy', 'Will operations normalize before the deadline?', 'LIVE', NULL, NOW() + INTERVAL '14 hour', NOW() - INTERVAL '4 hour');

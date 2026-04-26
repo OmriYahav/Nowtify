@@ -1,0 +1,9 @@
+# Node
+frontend/node_modules/
+.expo/
+
+# Java
+backend/target/
+
+# OS
+.DS_Store
