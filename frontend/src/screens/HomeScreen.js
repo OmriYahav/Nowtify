@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react';
-import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import EventSource from 'react-native-sse';
 import EventCard from '../components/EventCard';
+import ScreenLayout from '../components/ScreenLayout';
 import { useAuth } from '../context/AuthContext';
 import { apiRequest, API_BASE_URL } from '../services/api';
 import { colors } from '../theme/colors';
@@ -10,43 +11,98 @@ export default function HomeScreen({ navigation }) {
   const { user } = useAuth();
   const [events, setEvents] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  const loadEvents = async () => {
-    const data = await apiRequest(`/events?userId=${user.id}`);
-    setEvents(data);
-  };
+  const loadEvents = useCallback(async () => {
+    try {
+      setError('');
+      const data = await apiRequest(`/events?userId=${user.id}`);
+      setEvents(Array.isArray(data) ? data : []);
+    } catch (e) {
+      setError('Could not load live events. Please check backend connection and try again.');
+    } finally {
+      setLoading(false);
+    }
+  }, [user.id]);
 
   useEffect(() => {
     loadEvents();
-  }, []);
+  }, [loadEvents]);
 
   useEffect(() => {
+    console.log(`[home] using API base URL ${API_BASE_URL}`);
     const stream = new EventSource(`${API_BASE_URL}/events/stream`);
     stream.addEventListener('vote-updated', loadEvents);
     stream.addEventListener('event-resolved', loadEvents);
     stream.addEventListener('event-created', loadEvents);
+    stream.addEventListener('error', () => {
+      setError('Realtime updates are temporarily unavailable. Pull to refresh.');
+    });
+
     return () => stream.close();
-  }, []);
+  }, [loadEvents]);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadEvents();
+    setRefreshing(false);
+  };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.header}>Live Events</Text>
-      <FlatList
-        data={events}
-        keyExtractor={(item) => String(item.id)}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await loadEvents(); setRefreshing(false); }} tintColor={colors.accent} />}
-        renderItem={({ item }) => (
-          <EventCard
-            event={item}
-            onPress={() => navigation.navigate('EventDetails', { eventId: item.id })}
-          />
-        )}
-      />
-    </View>
+    <ScreenLayout title="Live Events" subtitle="Track active predictions in real time">
+      {loading ? (
+        <View style={styles.centerState}>
+          <ActivityIndicator size="large" color={colors.accent} />
+          <Text style={styles.stateTitle}>Loading events...</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={events}
+          keyExtractor={(item) => String(item.id)}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />}
+          renderItem={({ item }) => (
+            <EventCard
+              event={item}
+              onPress={() => navigation.navigate('EventDetails', { eventId: item.id })}
+            />
+          )}
+          ListEmptyComponent={
+            error ? (
+              <View style={styles.centerState}>
+                <Text style={styles.errorTitle}>Connection Error</Text>
+                <Text style={styles.stateSubtitle}>{error}</Text>
+                <Text style={styles.hint}>API: {API_BASE_URL}</Text>
+              </View>
+            ) : (
+              <View style={styles.centerState}>
+                <Text style={styles.stateTitle}>No live events yet</Text>
+                <Text style={styles.stateSubtitle}>Check back soon for new predictions.</Text>
+              </View>
+            )
+          }
+          contentContainerStyle={events.length === 0 ? styles.emptyContainer : styles.listContent}
+          showsVerticalScrollIndicator={false}
+        />
+      )}
+    </ScreenLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background, padding: 16 },
-  header: { color: colors.textPrimary, fontSize: 28, fontWeight: '800', marginBottom: 14 }
+  listContent: { paddingBottom: 24 },
+  emptyContainer: { flexGrow: 1, justifyContent: 'center', paddingBottom: 80 },
+  centerState: {
+    backgroundColor: colors.card,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 20,
+    alignItems: 'center',
+    marginTop: 8
+  },
+  stateTitle: { color: colors.textPrimary, fontSize: 19, fontWeight: '800', marginTop: 12 },
+  errorTitle: { color: colors.danger, fontSize: 19, fontWeight: '800' },
+  stateSubtitle: { color: colors.textSecondary, marginTop: 6, textAlign: 'center', lineHeight: 20 },
+  hint: { color: colors.textSecondary, marginTop: 10, fontSize: 12 }
 });

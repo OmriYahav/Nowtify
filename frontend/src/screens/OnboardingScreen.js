@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import { colors } from '../theme/colors';
 
@@ -20,24 +21,27 @@ export default function OnboardingScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.logo}>Nowtify</Text>
-      <Text style={styles.subtitle}>Real-time news predictions</Text>
-      <TextInput
-        value={username}
-        onChangeText={setUsername}
-        style={styles.input}
-        placeholder="Enter username"
-        placeholderTextColor={colors.textSecondary}
-      />
-      <TouchableOpacity style={styles.button} onPress={submit}>
-        <Text style={styles.buttonText}>Enter as Guest</Text>
-      </TouchableOpacity>
-    </View>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+      <View style={styles.container}>
+        <Text style={styles.logo}>Nowtify</Text>
+        <Text style={styles.subtitle}>Real-time Israel prediction feed</Text>
+        <TextInput
+          value={username}
+          onChangeText={setUsername}
+          style={styles.input}
+          placeholder="Enter username"
+          placeholderTextColor={colors.textSecondary}
+        />
+        <TouchableOpacity style={styles.button} onPress={submit}>
+          <Text style={styles.buttonText}>Enter as Guest</Text>
+        </TouchableOpacity>
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: { flex: 1, backgroundColor: colors.background },
   container: { flex: 1, backgroundColor: colors.background, justifyContent: 'center', padding: 24 },
   logo: { color: colors.textPrimary, fontSize: 42, fontWeight: '900', marginBottom: 8 },
   subtitle: { color: colors.textSecondary, fontSize: 16, marginBottom: 24 },
