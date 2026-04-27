@@ -35,15 +35,15 @@ public class VoteService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Event already resolved");
         }
 
-        if (voteRepository.findByUserAndEvent(user, event).isPresent()) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "User already voted on this event");
-        }
+        Vote vote = voteRepository.findByUserAndEvent(user, event).orElseGet(() -> {
+            Vote createdVote = new Vote();
+            createdVote.setEvent(event);
+            createdVote.setUser(user);
+            createdVote.setCreatedAt(Instant.now());
+            return createdVote;
+        });
 
-        Vote vote = new Vote();
-        vote.setEvent(event);
-        vote.setUser(user);
-        vote.setVoteOption(request.getVoteOption());
-        vote.setCreatedAt(Instant.now());
+        vote.setVoteOption(request.getVote());
         voteRepository.save(vote);
 
         EventResponse updated = eventService.toResponse(event, user);

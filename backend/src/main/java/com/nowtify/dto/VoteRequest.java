@@ -1,5 +1,6 @@
 package com.nowtify.dto;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.nowtify.model.VoteOption;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -11,5 +12,6 @@ public class VoteRequest {
     private String userId;
 
     @NotNull
-    private VoteOption voteOption;
+    @JsonAlias({"vote", "voteOption"})
+    private VoteOption vote;
 }

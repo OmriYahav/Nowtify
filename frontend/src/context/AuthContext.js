@@ -2,10 +2,8 @@ import React, { createContext, useContext, useEffect, useMemo, useState } from '
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { apiRequest } from '../services/api';
 
-const STORAGE_KEY = 'nowtify_guest';
+const STORAGE_KEY = 'nowtify_auth';
 const AuthContext = createContext(null);
-
-const generateId = () => `guest_${Date.now()}_${Math.floor(Math.random() * 100000)}`;
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -21,17 +19,34 @@ export function AuthProvider({ children }) {
     })();
   }, []);
 
-  const onboard = async (username) => {
-    const payload = { username: username.trim(), userId: generateId() };
-    const created = await apiRequest('/users/guest', {
+  const register = async (email, password) => {
+    const response = await apiRequest('/auth/register', {
       method: 'POST',
-      body: JSON.stringify(payload)
+      body: JSON.stringify({ email: email.trim(), password })
     });
-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(created));
-    setUser(created);
+
+    const nextUser = { id: response.userId, email: response.email };
+    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(nextUser));
+    setUser(nextUser);
   };
 
-  const value = useMemo(() => ({ user, loading, onboard }), [user, loading]);
+  const login = async (email, password) => {
+    const response = await apiRequest('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email: email.trim(), password })
+    });
+
+    const nextUser = { id: response.userId, email: response.email };
+    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(nextUser));
+    setUser(nextUser);
+  };
+
+  const logout = async () => {
+    await AsyncStorage.removeItem(STORAGE_KEY);
+    setUser(null);
+  };
+
+  const value = useMemo(() => ({ user, loading, register, login, logout }), [user, loading]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

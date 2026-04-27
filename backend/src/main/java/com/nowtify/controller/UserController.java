@@ -1,26 +1,20 @@
 package com.nowtify.controller;
 
-import com.nowtify.dto.GuestUserRequest;
 import com.nowtify.dto.UserProfileResponse;
-import com.nowtify.dto.UserResponse;
 import com.nowtify.service.ProfileService;
-import com.nowtify.service.UserService;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/users")
 @RequiredArgsConstructor
 @CrossOrigin(origins = "*")
 public class UserController {
-    private final UserService userService;
     private final ProfileService profileService;
-
-    @PostMapping("/guest")
-    public UserResponse registerGuest(@Valid @RequestBody GuestUserRequest request) {
-        return userService.registerGuest(request);
-    }
 
     @GetMapping("/{userId}/profile")
     public UserProfileResponse getProfile(@PathVariable String userId) {
