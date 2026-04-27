@@ -40,32 +40,32 @@ function getExpoHostCandidate() {
 function resolveDevApiBaseUrl() {
   const envUrl = process.env.EXPO_PUBLIC_API_URL;
   if (envUrl) {
-    return envUrl;
+    return { url: envUrl, reason: 'EXPO_PUBLIC_API_URL' };
   }
 
   const envLanIp = process.env.EXPO_PUBLIC_DEV_LAN_IP;
   if (envLanIp) {
-    return `http://${envLanIp}:${DEFAULT_API_PORT}`;
+    return { url: `http://${envLanIp}:${DEFAULT_API_PORT}`, reason: 'EXPO_PUBLIC_DEV_LAN_IP' };
   }
 
   if (__DEV__) {
     const expoHost = getExpoHostCandidate();
     if (expoHost && expoHost !== 'localhost' && expoHost !== '127.0.0.1') {
-      return `http://${expoHost}:${DEFAULT_API_PORT}`;
+      return { url: `http://${expoHost}:${DEFAULT_API_PORT}`, reason: 'Expo host' };
     }
 
-    return `http://localhost:${DEFAULT_API_PORT}`;
+    return { url: `http://localhost:${DEFAULT_API_PORT}`, reason: 'localhost fallback' };
   }
 
-  return `http://localhost:${DEFAULT_API_PORT}`;
+  return { url: `http://localhost:${DEFAULT_API_PORT}`, reason: 'production fallback' };
 }
 
-const API_BASE_URL = resolveDevApiBaseUrl();
+const { url: API_BASE_URL, reason: API_URL_REASON } = resolveDevApiBaseUrl();
 
 if (__DEV__) {
   const expoHost = getExpoHostCandidate();
   console.log(
-    `[api] Expo host candidate: ${expoHost || 'n/a'} | API base URL: ${API_BASE_URL}`
+    `[api] Expo host candidate: ${expoHost || 'n/a'} | API base URL: ${API_BASE_URL} (${API_URL_REASON})`
   );
 }
 
