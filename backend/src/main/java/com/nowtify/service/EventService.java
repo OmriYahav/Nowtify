@@ -29,22 +29,15 @@ public class EventService {
     private final RealtimeService realtimeService;
 
     public List<EventResponse> getAllEvents(String userId, UserService userService) {
-        User user = null;
-        if (userId != null && !userId.isBlank()) {
-            user = userService.getUserById(userId);
-        }
-        User finalUser = user;
+        User user = userService.getOptionalUserById(userId);
         return eventRepository.findAllByOrderByCreatedAtDesc().stream()
-                .map(event -> toResponse(event, finalUser))
+                .map(event -> toResponse(event, user))
                 .toList();
     }
 
     public EventResponse getEvent(Long id, String userId, UserService userService) {
         Event event = getEventEntity(id);
-        User user = null;
-        if (userId != null && !userId.isBlank()) {
-            user = userService.getUserById(userId);
-        }
+        User user = userService.getOptionalUserById(userId);
         return toResponse(event, user);
     }
 
