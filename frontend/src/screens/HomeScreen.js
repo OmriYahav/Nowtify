@@ -5,6 +5,7 @@ import EventCard from '../components/EventCard';
 import ScreenLayout from '../components/ScreenLayout';
 import { apiRequest, API_BASE_URL } from '../services/api';
 import { colors } from '../theme/colors';
+import { useAuth } from '../context/AuthContext';
 
 function getDisplayErrorMessage(error) {
   if (error instanceof Error) {
@@ -15,6 +16,7 @@ function getDisplayErrorMessage(error) {
 }
 
 export default function HomeScreen({ navigation }) {
+  const { user } = useAuth();
   const [events, setEvents] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -23,38 +25,28 @@ export default function HomeScreen({ navigation }) {
   const loadEvents = useCallback(async () => {
     try {
       setError('');
-      const data = await apiRequest('/events');
+      const data = await apiRequest(`/events?userId=${encodeURIComponent(user.id)}`);
       setEvents(Array.isArray(data) ? data : []);
     } catch (e) {
       const message = getDisplayErrorMessage(e);
-      setError(__DEV__ ? message : 'Could not load live events. Please check backend connection and try again.');
+      setError(message);
       if (__DEV__) {
         console.error('[home] failed loading events', e);
       }
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [user.id]);
 
   useEffect(() => {
     loadEvents();
   }, [loadEvents]);
 
   useEffect(() => {
-    console.log(`[home] using API base URL ${API_BASE_URL}`);
     const stream = new EventSource(`${API_BASE_URL}/events/stream`);
     stream.addEventListener('vote-updated', loadEvents);
     stream.addEventListener('event-resolved', loadEvents);
     stream.addEventListener('event-created', loadEvents);
-    stream.addEventListener('error', (streamError) => {
-      const message = __DEV__
-        ? `Realtime updates unavailable: ${getDisplayErrorMessage(streamError)}`
-        : 'Realtime updates are temporarily unavailable. Pull to refresh.';
-      setError(message);
-      if (__DEV__) {
-        console.error('[home] SSE stream error', streamError);
-      }
-    });
 
     return () => stream.close();
   }, [loadEvents]);
@@ -84,18 +76,10 @@ export default function HomeScreen({ navigation }) {
             />
           )}
           ListEmptyComponent={
-            error ? (
-              <View style={styles.centerState}>
-                <Text style={styles.errorTitle}>Connection Error</Text>
-                <Text style={styles.stateSubtitle}>{error}</Text>
-                <Text style={styles.hint}>API: {API_BASE_URL}</Text>
-              </View>
-            ) : (
-              <View style={styles.centerState}>
-                <Text style={styles.stateTitle}>No live events yet</Text>
-                <Text style={styles.stateSubtitle}>Check back soon for new predictions.</Text>
-              </View>
-            )
+            <View style={styles.centerState}>
+              <Text style={styles.errorTitle}>{error ? 'Unable to load events' : 'No live events yet'}</Text>
+              <Text style={styles.stateSubtitle}>{error || 'Check back soon for new predictions.'}</Text>
+            </View>
           }
           contentContainerStyle={events.length === 0 ? styles.emptyContainer : styles.listContent}
           showsVerticalScrollIndicator={false}
@@ -119,6 +103,5 @@ const styles = StyleSheet.create({
   },
   stateTitle: { color: colors.textPrimary, fontSize: 19, fontWeight: '800', marginTop: 12 },
   errorTitle: { color: colors.danger, fontSize: 19, fontWeight: '800' },
-  stateSubtitle: { color: colors.textSecondary, marginTop: 6, textAlign: 'center', lineHeight: 20 },
-  hint: { color: colors.textSecondary, marginTop: 10, fontSize: 12 }
+  stateSubtitle: { color: colors.textSecondary, marginTop: 6, textAlign: 'center', lineHeight: 20 }
 });

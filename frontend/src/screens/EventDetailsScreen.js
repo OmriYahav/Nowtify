@@ -9,23 +9,27 @@ export default function EventDetailsScreen({ route }) {
   const { eventId } = route.params;
   const { user } = useAuth();
   const [event, setEvent] = useState(null);
+  const [submittingVote, setSubmittingVote] = useState(false);
 
   const load = async () => {
-    const data = await apiRequest(`/events/${eventId}?userId=${user.id}`);
+    const data = await apiRequest(`/events/${eventId}?userId=${encodeURIComponent(user.id)}`);
     setEvent(data);
   };
 
   useEffect(() => { load(); }, []);
 
-  const vote = async (voteOption) => {
+  const vote = async (voteValue) => {
     try {
+      setSubmittingVote(true);
       const updated = await apiRequest(`/events/${eventId}/vote`, {
         method: 'POST',
-        body: JSON.stringify({ userId: user.id, voteOption })
+        body: JSON.stringify({ userId: user.id, vote: voteValue })
       });
       setEvent(updated);
     } catch (e) {
       Alert.alert('Vote failed', e.message);
+    } finally {
+      setSubmittingVote(false);
     }
   };
 
@@ -37,7 +41,7 @@ export default function EventDetailsScreen({ route }) {
     );
   }
 
-  const votingDisabled = !!event.userVote || event.status === 'RESOLVED';
+  const votingDisabled = submittingVote || !!event.userVote || event.status === 'RESOLVED';
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>

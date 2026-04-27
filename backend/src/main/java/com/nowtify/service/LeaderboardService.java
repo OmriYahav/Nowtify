@@ -21,7 +21,7 @@ public class LeaderboardService {
                         .thenComparingDouble(com.nowtify.model.User::getAccuracyPercentage).reversed())
                 .map(user -> LeaderboardEntryResponse.builder()
                         .rank(rank.getAndIncrement())
-                        .username(user.getUsername())
+                        .username(user.getEmail())
                         .score(user.getScore())
                         .accuracyPercentage(user.getAccuracyPercentage())
                         .totalPredictions(user.getTotalPredictions())

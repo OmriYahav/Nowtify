@@ -6,6 +6,8 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.Data;
 
+import java.time.Instant;
+
 @Entity
 @Table(name = "users")
 @Data
@@ -14,7 +16,13 @@ public class User {
     private String id;
 
     @Column(nullable = false, unique = true)
-    private String username;
+    private String email;
+
+    @Column(nullable = false)
+    private String password;
+
+    @Column(nullable = false)
+    private Instant createdAt = Instant.now();
 
     @Column(nullable = false)
     private int score = 0;
