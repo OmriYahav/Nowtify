@@ -38,6 +38,14 @@ public class UserService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
     }
 
+    public User getOptionalUserById(String userId) {
+        if (userId == null || userId.isBlank()) {
+            return null;
+        }
+
+        return userRepository.findById(userId).orElse(null);
+    }
+
     public UserResponse toUserResponse(User user) {
         return UserResponse.builder()
                 .id(user.getId())

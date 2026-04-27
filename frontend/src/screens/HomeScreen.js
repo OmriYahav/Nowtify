@@ -3,7 +3,6 @@ import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, View } f
 import EventSource from 'react-native-sse';
 import EventCard from '../components/EventCard';
 import ScreenLayout from '../components/ScreenLayout';
-import { useAuth } from '../context/AuthContext';
 import { apiRequest, API_BASE_URL } from '../services/api';
 import { colors } from '../theme/colors';
 
@@ -16,7 +15,6 @@ function getDisplayErrorMessage(error) {
 }
 
 export default function HomeScreen({ navigation }) {
-  const { user } = useAuth();
   const [events, setEvents] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -25,7 +23,7 @@ export default function HomeScreen({ navigation }) {
   const loadEvents = useCallback(async () => {
     try {
       setError('');
-      const data = await apiRequest(`/events?userId=${user.id}`);
+      const data = await apiRequest('/events');
       setEvents(Array.isArray(data) ? data : []);
     } catch (e) {
       const message = getDisplayErrorMessage(e);
@@ -36,7 +34,7 @@ export default function HomeScreen({ navigation }) {
     } finally {
       setLoading(false);
     }
-  }, [user.id]);
+  }, []);
 
   useEffect(() => {
     loadEvents();
