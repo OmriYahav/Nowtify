@@ -69,21 +69,65 @@ if (__DEV__) {
   );
 }
 
-export async function apiRequest(path, options = {}) {
-  const res = await fetch(`${API_BASE_URL}${path}`, {
-    headers: {
-      'Content-Type': 'application/json',
-      ...(options.headers || {})
-    },
-    ...options
-  });
+function buildErrorMessage(context, error) {
+  const errorMessage = error instanceof Error ? error.message : String(error);
+  return `${context}: ${errorMessage}`;
+}
 
-  if (!res.ok) {
-    const errorText = await res.text();
-    throw new Error(errorText || 'Request failed');
+export async function apiRequest(path, options = {}) {
+  const fullUrl = `${API_BASE_URL}${path}`;
+  if (__DEV__) {
+    console.log(`[api] ${options.method || 'GET'} ${fullUrl}`);
   }
 
-  return res.status === 204 ? null : res.json();
+  let res;
+  try {
+    res = await fetch(fullUrl, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...(options.headers || {})
+      },
+      ...options
+    });
+  } catch (error) {
+    const message = buildErrorMessage(`Network request failed for ${fullUrl}`, error);
+    if (__DEV__) {
+      console.error('[api] fetch error', { fullUrl, error });
+    }
+    throw new Error(message);
+  }
+
+  if (!res.ok) {
+    let errorText = '';
+    try {
+      errorText = await res.text();
+    } catch (error) {
+      if (__DEV__) {
+        console.error('[api] failed to read non-OK response body', { fullUrl, status: res.status, error });
+      }
+    }
+
+    const serverMessage = errorText ? ` - ${errorText}` : '';
+    const message = `HTTP ${res.status} ${res.statusText} for ${fullUrl}${serverMessage}`;
+    if (__DEV__) {
+      console.error('[api] HTTP error response', { fullUrl, status: res.status, statusText: res.statusText, errorText });
+    }
+    throw new Error(message);
+  }
+
+  if (res.status === 204) {
+    return null;
+  }
+
+  try {
+    return await res.json();
+  } catch (error) {
+    const message = buildErrorMessage(`Failed to parse JSON from ${fullUrl}`, error);
+    if (__DEV__) {
+      console.error('[api] JSON parse error', { fullUrl, error });
+    }
+    throw new Error(message);
+  }
 }
 
 export { API_BASE_URL };
