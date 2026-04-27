@@ -7,6 +7,14 @@ import { useAuth } from '../context/AuthContext';
 import { apiRequest, API_BASE_URL } from '../services/api';
 import { colors } from '../theme/colors';
 
+function getDisplayErrorMessage(error) {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return typeof error === 'string' ? error : 'Unknown error while loading events';
+}
+
 export default function HomeScreen({ navigation }) {
   const { user } = useAuth();
   const [events, setEvents] = useState([]);
@@ -20,7 +28,11 @@ export default function HomeScreen({ navigation }) {
       const data = await apiRequest(`/events?userId=${user.id}`);
       setEvents(Array.isArray(data) ? data : []);
     } catch (e) {
-      setError('Could not load live events. Please check backend connection and try again.');
+      const message = getDisplayErrorMessage(e);
+      setError(__DEV__ ? message : 'Could not load live events. Please check backend connection and try again.');
+      if (__DEV__) {
+        console.error('[home] failed loading events', e);
+      }
     } finally {
       setLoading(false);
     }
@@ -36,8 +48,14 @@ export default function HomeScreen({ navigation }) {
     stream.addEventListener('vote-updated', loadEvents);
     stream.addEventListener('event-resolved', loadEvents);
     stream.addEventListener('event-created', loadEvents);
-    stream.addEventListener('error', () => {
-      setError('Realtime updates are temporarily unavailable. Pull to refresh.');
+    stream.addEventListener('error', (streamError) => {
+      const message = __DEV__
+        ? `Realtime updates unavailable: ${getDisplayErrorMessage(streamError)}`
+        : 'Realtime updates are temporarily unavailable. Pull to refresh.';
+      setError(message);
+      if (__DEV__) {
+        console.error('[home] SSE stream error', streamError);
+      }
     });
 
     return () => stream.close();
