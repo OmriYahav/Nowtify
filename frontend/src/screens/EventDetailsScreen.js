@@ -46,7 +46,7 @@ export default function EventDetailsScreen({ route }) {
 
   if (!event && !error) {
     return (
-      <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+      <SafeAreaView style={styles.safeArea} edges={['left', 'right']}>
         <View style={styles.container}><ActivityIndicator color={colors.accent} /></View>
       </SafeAreaView>
     );
@@ -54,7 +54,7 @@ export default function EventDetailsScreen({ route }) {
 
   if (!event) {
     return (
-      <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+      <SafeAreaView style={styles.safeArea} edges={['left', 'right']}>
         <View style={styles.container}>
           <Text style={styles.errorText}>{error}</Text>
           <TouchableOpacity onPress={load} style={styles.retry}><Text style={styles.retryText}>Retry</Text></TouchableOpacity>
@@ -66,7 +66,7 @@ export default function EventDetailsScreen({ route }) {
   const votingDisabled = submittingVote || event.status === 'RESOLVED';
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={styles.safeArea} edges={['left', 'right']}>
       <View style={styles.container}>
         <Text style={styles.brand}>Nowtify</Text>
         <Text style={styles.title}>{event.title}</Text>
