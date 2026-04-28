@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import EventSource from 'react-native-sse';
 import EventCard from '../components/EventCard';
@@ -13,10 +13,27 @@ export default function HomeScreen({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const mountedRef = useRef(true);
 
-  const loadEvents = useCallback(async () => {
+  const sortEvents = useCallback((items) => {
+    return [...items].sort((a, b) => {
+      const aTime = a?.createdAt ? new Date(a.createdAt).getTime() : Number.NaN;
+      const bTime = b?.createdAt ? new Date(b.createdAt).getTime() : Number.NaN;
+      const hasA = Number.isFinite(aTime);
+      const hasB = Number.isFinite(bTime);
+
+      if (hasA && hasB) return bTime - aTime;
+      if (hasA) return -1;
+      if (hasB) return 1;
+      return 0;
+    });
+  }, []);
+
+  const loadEvents = useCallback(async ({ silent = false } = {}) => {
     try {
-      setError('');
+      if (!silent && mountedRef.current) {
+        setError('');
+      }
       let data;
       try {
         data = await apiRequest(`/events?userId=${encodeURIComponent(user.id)}`);
@@ -27,17 +44,42 @@ export default function HomeScreen({ navigation }) {
           throw e;
         }
       }
-      setEvents(Array.isArray(data) ? data : []);
+      if (mountedRef.current) {
+        const nextEvents = Array.isArray(data) ? data : [];
+        setEvents(sortEvents(nextEvents));
+      }
     } catch (e) {
-      setError(e.message || 'Unable to load events');
-      if (__DEV__) console.error('[home] load failed', e);
+      if (!silent && mountedRef.current) {
+        setError(e.message || 'Unable to load events');
+      }
+      if (__DEV__) {
+        const method = silent ? 'warn' : 'error';
+        console[method]('[home] load failed', e);
+      }
     } finally {
-      setLoading(false);
+      if (mountedRef.current) {
+        setLoading(false);
+      }
     }
-  }, [user.id]);
+  }, [sortEvents, user.id]);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     loadEvents();
+  }, [loadEvents]);
+
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      loadEvents({ silent: true });
+    }, 5000);
+
+    return () => clearInterval(intervalId);
   }, [loadEvents]);
 
   useEffect(() => {
@@ -51,7 +93,9 @@ export default function HomeScreen({ navigation }) {
   const onRefresh = async () => {
     setRefreshing(true);
     await loadEvents();
-    setRefreshing(false);
+    if (mountedRef.current) {
+      setRefreshing(false);
+    }
   };
 
   return (
