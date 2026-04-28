@@ -14,11 +14,12 @@ import LeaderboardScreen from './src/screens/LeaderboardScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
 import { colors } from './src/theme/colors';
 
-const Stack = createNativeStackNavigator();
+const RootStack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
+const HomeStack = createNativeStackNavigator();
 
 function tabIconName(routeName, focused) {
-  if (routeName === 'Home') {
+  if (routeName === 'HomeTab') {
     return focused ? 'home' : 'home-outline';
   }
 
@@ -29,12 +30,41 @@ function tabIconName(routeName, focused) {
   return focused ? 'person' : 'person-outline';
 }
 
+function HomeStackNavigator() {
+  return (
+    <HomeStack.Navigator
+      screenOptions={{
+        headerStyle: { backgroundColor: colors.background },
+        headerTintColor: colors.textPrimary,
+        headerTitleStyle: { fontWeight: '800' },
+        contentStyle: { backgroundColor: colors.background }
+      }}
+    >
+      <HomeStack.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
+      <HomeStack.Screen
+        name="EventDetails"
+        component={EventDetailsScreen}
+        options={{
+          title: 'Event Details',
+          headerBackTitle: 'Back'
+        }}
+      />
+    </HomeStack.Navigator>
+  );
+}
+
 function Tabs() {
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarStyle: { backgroundColor: colors.card, borderTopColor: colors.border, height: 62, paddingTop: 6, paddingBottom: 8 },
+        tabBarStyle: {
+          backgroundColor: colors.card,
+          borderTopColor: colors.border,
+          height: 62,
+          paddingTop: 6,
+          paddingBottom: 8
+        },
         tabBarActiveTintColor: colors.accent,
         tabBarInactiveTintColor: colors.textSecondary,
         tabBarIcon: ({ color, size, focused }) => (
@@ -42,10 +72,19 @@ function Tabs() {
         )
       })}
     >
-      <Tab.Screen name="Home" component={HomeScreen} />
+      <Tab.Screen name="HomeTab" component={HomeStackNavigator} options={{ title: 'Home' }} />
       <Tab.Screen name="Leaderboard" component={LeaderboardScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
+  );
+}
+
+function AuthStackNavigator() {
+  return (
+    <RootStack.Navigator screenOptions={{ headerShown: false }}>
+      <RootStack.Screen name="Login" component={LoginScreen} />
+      <RootStack.Screen name="Register" component={RegisterScreen} />
+    </RootStack.Navigator>
   );
 }
 
@@ -61,20 +100,20 @@ function Root() {
   }
 
   return (
-    <NavigationContainer theme={{ ...DarkTheme, colors: { ...DarkTheme.colors, background: colors.background, card: colors.card, text: colors.textPrimary, border: colors.border, primary: colors.accent } }}>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
-        {!user ? (
-          <>
-            <Stack.Screen name="Login" component={LoginScreen} />
-            <Stack.Screen name="Register" component={RegisterScreen} />
-          </>
-        ) : (
-          <>
-            <Stack.Screen name="Nowtify" component={Tabs} />
-            <Stack.Screen name="EventDetails" component={EventDetailsScreen} />
-          </>
-        )}
-      </Stack.Navigator>
+    <NavigationContainer
+      theme={{
+        ...DarkTheme,
+        colors: {
+          ...DarkTheme.colors,
+          background: colors.background,
+          card: colors.card,
+          text: colors.textPrimary,
+          border: colors.border,
+          primary: colors.accent
+        }
+      }}
+    >
+      {user ? <Tabs /> : <AuthStackNavigator />}
     </NavigationContainer>
   );
 }

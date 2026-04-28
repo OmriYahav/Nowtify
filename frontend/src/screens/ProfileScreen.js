@@ -12,6 +12,12 @@ export default function ProfileScreen() {
   const [error, setError] = useState('');
 
   const loadProfile = useCallback(async () => {
+    if (!user?.id) {
+      setLoading(false);
+      setError('No active user found. Please sign in to see your profile.');
+      return;
+    }
+
     try {
       setError('');
       const data = await apiRequest(`/users/${user.id}/profile`);
@@ -21,7 +27,7 @@ export default function ProfileScreen() {
     } finally {
       setLoading(false);
     }
-  }, [user.id]);
+  }, [user?.id]);
 
   useEffect(() => {
     loadProfile();
@@ -34,7 +40,7 @@ export default function ProfileScreen() {
       ) : error && !profile ? (
         <View>
           <Text style={styles.error}>{error}</Text>
-          <TouchableOpacity style={styles.retryBtn} onPress={loadProfile}><Text style={styles.logoutText}>Retry</Text></TouchableOpacity>
+          {!!user?.id && <TouchableOpacity style={styles.retryBtn} onPress={loadProfile}><Text style={styles.logoutText}>Retry</Text></TouchableOpacity>}
         </View>
       ) : (
         <FlatList
@@ -43,8 +49,8 @@ export default function ProfileScreen() {
           ListHeaderComponent={
             <>
               <View style={styles.userCard}>
-                <Text style={styles.username}>{profile?.email || user.email}</Text>
-                <Text style={styles.userSub}>User ID: {profile?.userId || user.id}</Text>
+                <Text style={styles.username}>{profile?.username || profile?.email || user?.email || 'Nowtify User'}</Text>
+                <Text style={styles.userSub}>User ID: {profile?.userId || user?.id}</Text>
               </View>
               <View style={styles.statsGrid}>
                 <View style={styles.statCard}><Text style={styles.statLabel}>Score</Text><Text style={styles.statValue}>{profile?.score ?? 0}</Text></View>
