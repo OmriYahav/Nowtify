@@ -3,15 +3,21 @@ import Constants from 'expo-constants';
 
 const DEFAULT_API_PORT = '8080';
 
-function extractHost(value) {
-  if (!value || typeof value !== 'string') {
-    return null;
+export class ApiError extends Error {
+  constructor(message, { status, url, body } = {}) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.url = url;
+    this.body = body;
   }
+}
+
+function extractHost(value) {
+  if (!value || typeof value !== 'string') return null;
 
   const trimmed = value.trim();
-  if (!trimmed) {
-    return null;
-  }
+  if (!trimmed) return null;
 
   let normalized = trimmed;
   if (!/^https?:\/\//i.test(normalized) && !normalized.startsWith('//')) {
@@ -39,50 +45,41 @@ function getExpoHostCandidate() {
 
 function resolveDevApiBaseUrl() {
   const envUrl = process.env.EXPO_PUBLIC_API_URL;
-  if (envUrl) {
-    return { url: envUrl, reason: 'EXPO_PUBLIC_API_URL' };
-  }
+  if (envUrl) return { url: envUrl, reason: 'EXPO_PUBLIC_API_URL' };
 
   const envLanIp = process.env.EXPO_PUBLIC_DEV_LAN_IP;
-  if (envLanIp) {
-    return { url: `http://${envLanIp}:${DEFAULT_API_PORT}`, reason: 'EXPO_PUBLIC_DEV_LAN_IP' };
+  if (envLanIp) return { url: `http://${envLanIp}:${DEFAULT_API_PORT}`, reason: 'EXPO_PUBLIC_DEV_LAN_IP' };
+
+  const expoHost = getExpoHostCandidate();
+  if (expoHost && expoHost !== 'localhost' && expoHost !== '127.0.0.1') {
+    return { url: `http://${expoHost}:${DEFAULT_API_PORT}`, reason: 'Expo host' };
   }
 
-  if (__DEV__) {
-    const expoHost = getExpoHostCandidate();
-    if (expoHost && expoHost !== 'localhost' && expoHost !== '127.0.0.1') {
-      return { url: `http://${expoHost}:${DEFAULT_API_PORT}`, reason: 'Expo host' };
-    }
-
-    return { url: `http://localhost:${DEFAULT_API_PORT}`, reason: 'localhost fallback' };
-  }
-
-  return { url: `http://localhost:${DEFAULT_API_PORT}`, reason: 'production fallback' };
+  return { url: `http://localhost:${DEFAULT_API_PORT}`, reason: 'localhost fallback' };
 }
 
 const { url: API_BASE_URL, reason: API_URL_REASON } = resolveDevApiBaseUrl();
 
 if (__DEV__) {
-  const expoHost = getExpoHostCandidate();
-  console.log(
-    `[api] Expo host candidate: ${expoHost || 'n/a'} | API base URL: ${API_BASE_URL} (${API_URL_REASON})`
-  );
+  console.log(`[api] base URL: ${API_BASE_URL} (${API_URL_REASON})`);
 }
 
-function buildErrorMessage(context, error) {
-  const errorMessage = error instanceof Error ? error.message : String(error);
-  return `${context}: ${errorMessage}`;
+function parseBodyText(text) {
+  if (!text) return null;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
+  }
 }
 
 export async function apiRequest(path, options = {}) {
   const fullUrl = `${API_BASE_URL}${path}`;
-  if (__DEV__) {
-    console.log(`[api] ${options.method || 'GET'} ${fullUrl}`);
-  }
+  if (__DEV__) console.log(`[api] ${options.method || 'GET'} ${fullUrl}`);
 
-  let res;
+  let response;
   try {
-    res = await fetch(fullUrl, {
+    response = await fetch(fullUrl, {
       headers: {
         'Content-Type': 'application/json',
         ...(options.headers || {})
@@ -90,44 +87,25 @@ export async function apiRequest(path, options = {}) {
       ...options
     });
   } catch (error) {
-    const message = buildErrorMessage(`Network request failed for ${fullUrl}`, error);
-    if (__DEV__) {
-      console.error('[api] fetch error', { fullUrl, error });
-    }
-    throw new Error(message);
+    throw new ApiError(`Network request failed for ${fullUrl}`, { url: fullUrl, body: String(error) });
   }
 
-  if (!res.ok) {
-    let errorText = '';
-    try {
-      errorText = await res.text();
-    } catch (error) {
-      if (__DEV__) {
-        console.error('[api] failed to read non-OK response body', { fullUrl, status: res.status, error });
-      }
-    }
+  const text = await response.text();
+  const parsedBody = parseBodyText(text);
 
-    const serverMessage = errorText ? ` - ${errorText}` : '';
-    const message = `HTTP ${res.status} ${res.statusText} for ${fullUrl}${serverMessage}`;
-    if (__DEV__) {
-      console.error('[api] HTTP error response', { fullUrl, status: res.status, statusText: res.statusText, errorText });
-    }
-    throw new Error(message);
+  if (!response.ok) {
+    const detail = typeof parsedBody === 'string'
+      ? parsedBody
+      : parsedBody?.message || parsedBody?.error || response.statusText;
+    throw new ApiError(`HTTP ${response.status}: ${detail}`, {
+      status: response.status,
+      url: fullUrl,
+      body: parsedBody
+    });
   }
 
-  if (res.status === 204) {
-    return null;
-  }
-
-  try {
-    return await res.json();
-  } catch (error) {
-    const message = buildErrorMessage(`Failed to parse JSON from ${fullUrl}`, error);
-    if (__DEV__) {
-      console.error('[api] JSON parse error', { fullUrl, error });
-    }
-    throw new Error(message);
-  }
+  if (response.status === 204 || text === '') return null;
+  return parsedBody;
 }
 
 export { API_BASE_URL };

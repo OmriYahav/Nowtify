@@ -12,9 +12,7 @@ export default function EventCard({ event, onPress }) {
           <Text style={styles.categoryText}>{event.category}</Text>
         </View>
         <View style={[styles.statusBadge, isLive ? styles.liveBadge : styles.resolvedBadge]}>
-          <Text style={[styles.statusText, isLive ? styles.liveText : styles.resolvedText]}>
-            {event.status}
-          </Text>
+          <Text style={[styles.statusText, isLive ? styles.liveText : styles.resolvedText]}>{event.status}</Text>
         </View>
       </View>
       <Text style={styles.title}>{event.title}</Text>
@@ -22,8 +20,11 @@ export default function EventCard({ event, onPress }) {
       <Text style={styles.question} numberOfLines={2}>{event.predictionQuestion}</Text>
       <View style={styles.metaRow}>
         <Text style={styles.meta}>{event.totalVotes} votes</Text>
-        <Text style={styles.meta}>Closes {new Date(event.closingTime).toLocaleString()}</Text>
+        <Text style={styles.meta}>YES {event.yesPercentage}% · NO {event.noPercentage}%</Text>
       </View>
+      <Text style={styles.meta}>Closes {new Date(event.closingTime).toLocaleString()}</Text>
+      {event.userVote ? <Text style={styles.userVote}>Your vote: {event.userVote}</Text> : null}
+      {event.outcome ? <Text style={styles.outcome}>Outcome: {event.outcome}</Text> : null}
     </Pressable>
   );
 }
@@ -50,5 +51,7 @@ const styles = StyleSheet.create({
   description: { color: colors.textSecondary, marginBottom: 8, lineHeight: 20 },
   question: { color: colors.textPrimary, fontWeight: '700', marginBottom: 10, lineHeight: 20 },
   metaRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 8 },
-  meta: { color: colors.textSecondary, fontSize: 12, flexShrink: 1 }
+  meta: { color: colors.textSecondary, fontSize: 12, flexShrink: 1, marginTop: 4 },
+  userVote: { color: colors.accent, fontWeight: '700', marginTop: 6 },
+  outcome: { color: colors.success, fontWeight: '700', marginTop: 4 }
 });

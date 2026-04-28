@@ -18,10 +18,11 @@ public class LeaderboardService {
         AtomicInteger rank = new AtomicInteger(1);
         return userRepository.findAll().stream()
                 .sorted(Comparator.comparingInt((com.nowtify.model.User u) -> u.getScore()).reversed()
-                        .thenComparingDouble(com.nowtify.model.User::getAccuracyPercentage).reversed())
+                        .thenComparing(Comparator.comparingDouble(com.nowtify.model.User::getAccuracyPercentage).reversed()))
                 .map(user -> LeaderboardEntryResponse.builder()
                         .rank(rank.getAndIncrement())
-                        .username(user.getEmail())
+                        .userId(user.getId())
+                        .email(user.getEmail())
                         .score(user.getScore())
                         .accuracyPercentage(user.getAccuracyPercentage())
                         .totalPredictions(user.getTotalPredictions())
