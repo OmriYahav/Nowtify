@@ -1,19 +1,11 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import EventSource from 'react-native-sse';
 import EventCard from '../components/EventCard';
 import ScreenLayout from '../components/ScreenLayout';
-import { apiRequest, API_BASE_URL } from '../services/api';
+import { apiRequest, API_BASE_URL, ApiError } from '../services/api';
 import { colors } from '../theme/colors';
 import { useAuth } from '../context/AuthContext';
-
-function getDisplayErrorMessage(error) {
-  if (error instanceof Error) {
-    return error.message;
-  }
-
-  return typeof error === 'string' ? error : 'Unknown error while loading events';
-}
 
 export default function HomeScreen({ navigation }) {
   const { user } = useAuth();
@@ -25,14 +17,20 @@ export default function HomeScreen({ navigation }) {
   const loadEvents = useCallback(async () => {
     try {
       setError('');
-      const data = await apiRequest(`/events?userId=${encodeURIComponent(user.id)}`);
+      let data;
+      try {
+        data = await apiRequest(`/events?userId=${encodeURIComponent(user.id)}`);
+      } catch (e) {
+        if (e instanceof ApiError && e.status === 404) {
+          data = await apiRequest('/events');
+        } else {
+          throw e;
+        }
+      }
       setEvents(Array.isArray(data) ? data : []);
     } catch (e) {
-      const message = getDisplayErrorMessage(e);
-      setError(message);
-      if (__DEV__) {
-        console.error('[home] failed loading events', e);
-      }
+      setError(e.message || 'Unable to load events');
+      if (__DEV__) console.error('[home] load failed', e);
     } finally {
       setLoading(false);
     }
@@ -47,7 +45,6 @@ export default function HomeScreen({ navigation }) {
     stream.addEventListener('vote-updated', loadEvents);
     stream.addEventListener('event-resolved', loadEvents);
     stream.addEventListener('event-created', loadEvents);
-
     return () => stream.close();
   }, [loadEvents]);
 
@@ -64,21 +61,26 @@ export default function HomeScreen({ navigation }) {
           <ActivityIndicator size="large" color={colors.accent} />
           <Text style={styles.stateTitle}>Loading events...</Text>
         </View>
+      ) : error && events.length === 0 ? (
+        <View style={styles.centerState}>
+          <Text style={styles.errorTitle}>Unable to load events</Text>
+          <Text style={styles.stateSubtitle}>{error}</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={loadEvents}>
+            <Text style={styles.retryText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
       ) : (
         <FlatList
           data={events}
           keyExtractor={(item) => String(item.id)}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />}
           renderItem={({ item }) => (
-            <EventCard
-              event={item}
-              onPress={() => navigation.navigate('EventDetails', { eventId: item.id })}
-            />
+            <EventCard event={item} onPress={() => navigation.navigate('EventDetails', { eventId: item.id })} />
           )}
           ListEmptyComponent={
             <View style={styles.centerState}>
-              <Text style={styles.errorTitle}>{error ? 'Unable to load events' : 'No live events yet'}</Text>
-              <Text style={styles.stateSubtitle}>{error || 'Check back soon for new predictions.'}</Text>
+              <Text style={styles.stateTitle}>No live events yet</Text>
+              <Text style={styles.stateSubtitle}>Check back soon for new predictions.</Text>
             </View>
           }
           contentContainerStyle={events.length === 0 ? styles.emptyContainer : styles.listContent}
@@ -103,5 +105,7 @@ const styles = StyleSheet.create({
   },
   stateTitle: { color: colors.textPrimary, fontSize: 19, fontWeight: '800', marginTop: 12 },
   errorTitle: { color: colors.danger, fontSize: 19, fontWeight: '800' },
-  stateSubtitle: { color: colors.textSecondary, marginTop: 6, textAlign: 'center', lineHeight: 20 }
+  stateSubtitle: { color: colors.textSecondary, marginTop: 6, textAlign: 'center', lineHeight: 20 },
+  retryButton: { marginTop: 14, backgroundColor: colors.accent, borderRadius: 10, paddingVertical: 10, paddingHorizontal: 20 },
+  retryText: { color: colors.textPrimary, fontWeight: '700' }
 });

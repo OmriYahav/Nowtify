@@ -1,47 +1,69 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
-import { apiRequest } from '../services/api';
+import { apiRequest, ApiError } from '../services/api';
 import { colors } from '../theme/colors';
 
 export default function EventDetailsScreen({ route }) {
   const { eventId } = route.params;
   const { user } = useAuth();
   const [event, setEvent] = useState(null);
+  const [error, setError] = useState('');
   const [submittingVote, setSubmittingVote] = useState(false);
 
   const load = async () => {
-    const data = await apiRequest(`/events/${eventId}?userId=${encodeURIComponent(user.id)}`);
-    setEvent(data);
+    try {
+      setError('');
+      const data = await apiRequest(`/events/${eventId}?userId=${encodeURIComponent(user.id)}`);
+      setEvent(data);
+    } catch (e) {
+      setError(e.message || 'Failed to load event');
+    }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [eventId, user.id]);
 
   const vote = async (voteValue) => {
     try {
       setSubmittingVote(true);
+      setError('');
       const updated = await apiRequest(`/events/${eventId}/vote`, {
         method: 'POST',
         body: JSON.stringify({ userId: user.id, vote: voteValue })
       });
       setEvent(updated);
     } catch (e) {
-      Alert.alert('Vote failed', e.message);
+      if (e instanceof ApiError && e.status === 400) {
+        setError('Vote was not accepted. You may have already voted or event is closed.');
+      } else {
+        setError(e.message || 'Vote failed');
+      }
     } finally {
       setSubmittingVote(false);
     }
   };
 
-  if (!event) {
+  if (!event && !error) {
     return (
       <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
-        <View style={styles.container}><Text style={styles.text}>Loading event...</Text></View>
+        <View style={styles.container}><ActivityIndicator color={colors.accent} /></View>
       </SafeAreaView>
     );
   }
 
-  const votingDisabled = submittingVote || !!event.userVote || event.status === 'RESOLVED';
+  if (!event) {
+    return (
+      <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+        <View style={styles.container}>
+          <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity onPress={load} style={styles.retry}><Text style={styles.retryText}>Retry</Text></TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const votingDisabled = submittingVote || event.status === 'RESOLVED';
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
@@ -53,14 +75,23 @@ export default function EventDetailsScreen({ route }) {
         <View style={styles.card}>
           <Text style={styles.question}>{event.predictionQuestion}</Text>
           <View style={styles.buttonRow}>
-            <TouchableOpacity disabled={votingDisabled} style={[styles.voteButton, styles.yes, votingDisabled && styles.disabled]} onPress={() => vote('YES')}><Text style={styles.voteText}>YES</Text></TouchableOpacity>
-            <TouchableOpacity disabled={votingDisabled} style={[styles.voteButton, styles.no, votingDisabled && styles.disabled]} onPress={() => vote('NO')}><Text style={styles.voteText}>NO</Text></TouchableOpacity>
+            <TouchableOpacity
+              disabled={votingDisabled}
+              style={[styles.voteButton, styles.yes, event.userVote === 'YES' && styles.selected, votingDisabled && styles.disabled]}
+              onPress={() => vote('YES')}
+            ><Text style={styles.voteText}>YES</Text></TouchableOpacity>
+            <TouchableOpacity
+              disabled={votingDisabled}
+              style={[styles.voteButton, styles.no, event.userVote === 'NO' && styles.selected, votingDisabled && styles.disabled]}
+              onPress={() => vote('NO')}
+            ><Text style={styles.voteText}>NO</Text></TouchableOpacity>
           </View>
           <Text style={styles.text}>Yes: {event.yesPercentage}% · No: {event.noPercentage}%</Text>
           <Text style={styles.text}>Total votes: {event.totalVotes}</Text>
           <Text style={styles.text}>Closing: {new Date(event.closingTime).toLocaleString()}</Text>
-          {event.outcome ? <Text style={styles.outcome}>Resolved outcome: {event.outcome}</Text> : null}
           {event.userVote ? <Text style={styles.text}>Your vote: {event.userVote}</Text> : null}
+          {event.outcome ? <Text style={styles.outcome}>Resolved outcome: {event.outcome}</Text> : null}
+          {error ? <Text style={styles.errorText}>{error}</Text> : null}
         </View>
       </View>
     </SafeAreaView>
@@ -80,8 +111,12 @@ const styles = StyleSheet.create({
   voteButton: { flex: 1, padding: 16, borderRadius: 14, alignItems: 'center' },
   yes: { backgroundColor: colors.success },
   no: { backgroundColor: colors.danger },
-  disabled: { opacity: 0.5 },
+  selected: { borderWidth: 2, borderColor: colors.textPrimary },
+  disabled: { opacity: 0.6 },
   voteText: { color: colors.textPrimary, fontWeight: '900', fontSize: 20 },
   text: { color: colors.textPrimary, marginBottom: 6 },
-  outcome: { color: colors.accent, marginTop: 8, fontWeight: '700' }
+  outcome: { color: colors.accent, marginTop: 8, fontWeight: '700' },
+  errorText: { color: colors.danger, marginTop: 8 },
+  retry: { marginTop: 10, backgroundColor: colors.accent, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 10, alignSelf: 'flex-start' },
+  retryText: { color: colors.textPrimary, fontWeight: '700' }
 });

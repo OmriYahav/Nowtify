@@ -45,6 +45,7 @@ public class VoteService {
 
         vote.setVoteOption(request.getVote());
         voteRepository.save(vote);
+        refreshUserStats(user);
 
         EventResponse updated = eventService.toResponse(event, user);
         realtimeService.broadcastUpdate("vote-updated", updated);
@@ -53,20 +54,22 @@ public class VoteService {
 
     @Transactional
     public void recalculateAllUserScores() {
-        userRepository.findAll().forEach(user -> {
-            List<Vote> votes = voteRepository.findByUser(user);
-            int correct = (int) votes.stream().filter(v -> Boolean.TRUE.equals(v.getWasCorrect())).count();
-            int wrong = (int) votes.stream().filter(v -> Boolean.FALSE.equals(v.getWasCorrect())).count();
-            int totalResolvedPredictions = correct + wrong;
-
-            user.setCorrectPredictions(correct);
-            user.setWrongPredictions(wrong);
-            user.setTotalPredictions(votes.size());
-            user.setScore((correct * 10) - (wrong * 3));
-            user.setAccuracyPercentage(totalResolvedPredictions == 0
-                    ? 0.0
-                    : Math.round(((double) correct / totalResolvedPredictions) * 1000.0) / 10.0);
-        });
+        userRepository.findAll().forEach(this::refreshUserStats);
         userRepository.flush();
+    }
+
+    private void refreshUserStats(User user) {
+        List<Vote> votes = voteRepository.findByUser(user);
+        int correct = (int) votes.stream().filter(v -> Boolean.TRUE.equals(v.getWasCorrect())).count();
+        int wrong = (int) votes.stream().filter(v -> Boolean.FALSE.equals(v.getWasCorrect())).count();
+        int totalResolvedPredictions = correct + wrong;
+
+        user.setCorrectPredictions(correct);
+        user.setWrongPredictions(wrong);
+        user.setTotalPredictions(votes.size());
+        user.setScore((correct * 10) - (wrong * 3));
+        user.setAccuracyPercentage(totalResolvedPredictions == 0
+                ? 0.0
+                : Math.round(((double) correct / totalResolvedPredictions) * 1000.0) / 10.0);
     }
 }
