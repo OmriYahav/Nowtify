@@ -6,6 +6,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
+import OnboardingScreen from './src/screens/OnboardingScreen';
 import LoginScreen from './src/screens/LoginScreen';
 import RegisterScreen from './src/screens/RegisterScreen';
 import HomeScreen from './src/screens/HomeScreen';
@@ -19,7 +20,7 @@ const Tab = createBottomTabNavigator();
 const HomeStack = createNativeStackNavigator();
 
 function tabIconName(routeName, focused) {
-  if (routeName === 'HomeTab') {
+  if (routeName === 'Home') {
     return focused ? 'home' : 'home-outline';
   }
 
@@ -40,7 +41,7 @@ function HomeStackNavigator() {
         contentStyle: { backgroundColor: colors.background }
       }}
     >
-      <HomeStack.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
+      <HomeStack.Screen name="HomeScreen" component={HomeScreen} options={{ title: 'Home', headerShown: false }} />
       <HomeStack.Screen
         name="EventDetails"
         component={EventDetailsScreen}
@@ -53,26 +54,31 @@ function HomeStackNavigator() {
   );
 }
 
-function Tabs() {
+function MainTabs() {
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
+        tabBarShowLabel: true,
         tabBarStyle: {
-          backgroundColor: colors.card,
-          borderTopColor: colors.border,
-          height: 62,
+          backgroundColor: '#0B1220',
+          borderTopColor: '#1F2937',
+          height: 64,
           paddingTop: 6,
           paddingBottom: 8
         },
-        tabBarActiveTintColor: colors.accent,
-        tabBarInactiveTintColor: colors.textSecondary,
+        tabBarActiveTintColor: '#3B82F6',
+        tabBarInactiveTintColor: '#9CA3AF',
+        tabBarLabelStyle: {
+          fontSize: 12,
+          fontWeight: '600'
+        },
         tabBarIcon: ({ color, size, focused }) => (
           <Ionicons name={tabIconName(route.name, focused)} size={size} color={color} />
         )
       })}
     >
-      <Tab.Screen name="HomeTab" component={HomeStackNavigator} options={{ title: 'Home' }} />
+      <Tab.Screen name="Home" component={HomeStackNavigator} />
       <Tab.Screen name="Leaderboard" component={LeaderboardScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
@@ -82,13 +88,14 @@ function Tabs() {
 function AuthStackNavigator() {
   return (
     <RootStack.Navigator screenOptions={{ headerShown: false }}>
+      <RootStack.Screen name="Onboarding" component={OnboardingScreen} />
       <RootStack.Screen name="Login" component={LoginScreen} />
       <RootStack.Screen name="Register" component={RegisterScreen} />
     </RootStack.Navigator>
   );
 }
 
-function Root() {
+function RootNavigator() {
   const { user, loading } = useAuth();
 
   if (loading) {
@@ -113,7 +120,7 @@ function Root() {
         }
       }}
     >
-      {user ? <Tabs /> : <AuthStackNavigator />}
+      {user ? <MainTabs /> : <AuthStackNavigator />}
     </NavigationContainer>
   );
 }
@@ -122,7 +129,7 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <AuthProvider>
-        <Root />
+        <RootNavigator />
       </AuthProvider>
     </SafeAreaProvider>
   );
